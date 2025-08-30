@@ -1,17 +1,25 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Follow;
 import com.hmdp.mapper.FollowMapper;
 import com.hmdp.service.IFollowService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IUserService;
 import com.hmdp.utils.UserHolder;
 import org.apache.ibatis.annotations.Delete;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * <p>
@@ -25,6 +33,9 @@ import javax.annotation.Resource;
 public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements IFollowService {
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private IUserService userService;
 
     @Override
     public Result follow(Long followUserId, Boolean isFollow) {
@@ -63,8 +74,16 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
     @Override
     public Result followCommons(Long id) {
-        //查询共同关
+        //
         Long userId = UserHolder.getUser().getId();
-
+        String key = "follows:" + userId;
+        String key2 = "follows:" + id;
+        Set<String> intersect = stringRedisTemplate.opsForSet().intersect(key, key2);
+        if (intersect == null|| intersect.isEmpty()){
+            return Result.ok(Collections.emptyList());
+        }
+        List<Long> ids = intersect.stream().map(Long::valueOf).collect(Collectors.toList());
+        Stream<UserDTO> users = userService.listByIds(ids).stream().map(user -> BeanUtil.copyProperties(user, UserDTO.class));
+return Result.ok(users);
     }
 }
