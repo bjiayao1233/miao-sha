@@ -188,7 +188,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         String key = FEED_KEY + userId;//收件箱key
         Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate
                 .opsForZSet()
-                .reverseRangeByScoreWithScores(key, 0, max, offset, 2);
+                .reverseRangeByScoreWithScores(key, 0, max, offset, 3);
         if (typedTuples == null || typedTuples.isEmpty()) {
             return Result.ok();
         }
@@ -196,13 +196,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         long minTime = 0;
         int os = 1;
         //解析数据：blogId，score（时间戳 ），offset
-        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+        for (ZSetOperations.TypedTuple<String> tuple : typedTuples) {
             //获取id
-            ids.add(Long.valueOf(typedTuple.getValue()));
+            ids.add(Long.valueOf(tuple.getValue()));
             //获取分数（时间戳）
-
-            long time = typedTuple.getScore().longValue();
-            if (time < minTime) {
+            long time = tuple.getScore().longValue();
+            if (time == minTime) {
                 os++;
             } else {
                 minTime = time;
@@ -219,8 +218,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             isBlogLiked(blog);
         }
         ScrollResult r = new ScrollResult();
-        r.setOffset(os);
         r.setList(blogs);
+        r.setOffset(os);
         r.setMinTime(minTime);
         return Result.ok(r);
     }
@@ -244,7 +243,6 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         //查询blog是否被点赞
         isBlogLiked(blog);
         return Result.ok(blog);
-
     }
 
     /**
